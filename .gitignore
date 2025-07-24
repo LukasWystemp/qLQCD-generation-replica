@@ -1,1 +1,8 @@
-*~
+# Ignore folders beginning with RunReplica
+RunReplica*/
+
+# Ignore PNG files starting with Wilson_action
+Wilson_action*.png
+
+# Ignore PNG files starting with action_diff
+action_diff*.png

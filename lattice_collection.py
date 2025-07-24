@@ -21,7 +21,7 @@ def fn_lattice_collection(action, Nt, Nx, Ny, Nz, beta, start, end, step = 1, pa
     for cfg in range(start, end + 1, step):
         U = fn_load_configuration(action, Nt, Nx, Ny, Nz, beta, cfg, path=path)
         collection.append(U)
-    print("Configurations for beta ", beta, " collectetd.\n")
+    print("Configurations for beta ", beta, " collected.\n")
     return collection
 
 ### Loads configuration given the action, dimensions, beta and number of configurations.
@@ -38,6 +38,26 @@ def fn_load_configuration(action, Nt, Nx, Ny, Nz, beta, cfg, path = ""):
                         U[t][x][y][z][mu] = np.matrix(tmp[t][x][y][z][mu])
     sys.stdout.flush()
     return U
+
+
+def fn_replica_lattice_collection(Nt, Nx, Ny, Nz, beta, start, end, path=""):
+    # Reads lattice configurations for the replica lattice method
+    # Returns two collections, one for each replica lattice s and s+1
+    # collection dim is (cfgs, Nt, Nx, Ny, Nz, 4, 3, 3)
+    collection_1 = []
+    collection_2 = []
+    for cfg in range(start, end):
+        U1, U2 = fn_load_single_replica_configuration(Nt, Nx, Ny, Nz, beta, cfg, path=path)
+        collection_1.append(U1)
+        collection_2.append(U2)
+    return collection_1, collection_2
+
+def fn_load_single_replica_configuration(Nt, Nx, Ny, Nz, beta, cfg, path = ""):
+    tmp_1 = np.load(os.path.join(path, f"config_{cfg:01d}_U1.npy"))
+    tmp_2 = np.load(os.path.join(path, f"config_{cfg:01d}_U2.npy"))
+    return tmp_1, tmp_2
+
+
 
 ### HELPER FUNCTION - ONLY TO ALLOW MULTIPROCESSING. 
 ### collects calls function and sends arguments properly

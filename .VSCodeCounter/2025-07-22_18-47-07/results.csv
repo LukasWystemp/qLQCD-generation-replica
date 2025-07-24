@@ -1,0 +1,14 @@
+"filename", "language", "Python", "comment", "blank", "total"
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/action_v_cfg.py", "Python", 41, 8, 12, 61
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/gauge_latticeqcd.py", "Python", 593, 136, 126, 855
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/generate.py", "Python", 27, 12, 10, 49
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/lattice_collection.py", "Python", 171, 40, 59, 270
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/params.py", "Python", 8, 5, 4, 17
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/plaq_v_cfg.py", "Python", 25, 3, 7, 35
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/replica_analysis.py", "Python", 44, 0, 10, 54
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/replica_generate.py", "Python", 33, 1, 6, 40
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/replica_wilson_action_graph.py", "Python", 43, 0, 8, 51
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/test_file.py", "Python", 23, 2, 9, 34
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/tools_v1.py", "Python", 87, 740, 39, 866
+"/Users/lukaswystemp/Documents/University/Glasgow project/qLQCD-generation/wilson_action_graph.py", "Python", 23, 1, 10, 34
+"Total", "-", 1118, 948, 300, 2366
