@@ -13,27 +13,26 @@ import numpy as np
 import os
 import gauge_latticeqcd as glqcd
 import lattice_collection as lc
-import action_v_cfg
 import matplotlib.pyplot as plt
 from multiprocessing import Process, Pool
 from collections import defaultdict
 
 # User parameters
 action = 'W'
-Nt, Nx, Ny, Nz = 6, 6, 6, 6
+Nt, Nx, Ny, Nz = 4, 4, 4, 4
 beta = 5.7
 Nstart = 0
-Nend = 70
+Nend = 100
 Ncfg = Nend - Nstart + 1
 Nhits = 10
 n = 2
 s = 2
 u0 = 1.0
 
-run_number = 4
+run_number = 5
 
 alphas = [0, 0.2, 0.4, 0.6, 0.8, 1]
-ensembles = [0, 1, 2]
+ensembles = [0, 1]
 
 def create_base():
     base_dir = f"RunReplica{run_number}"
@@ -42,7 +41,7 @@ def create_base():
         print(f"Created directory: {base_dir}")
     else:
         print(f"Directory exists for Run number {run_number} and beta ", beta)
-
+ 
     new_base_dir = f"Replica_{action}_{Nt}x{Nx}x{Ny}x{Nz}_b{int(beta * 100)}"
     new_base_dir = os.path.join(base_dir, new_base_dir)
     return new_base_dir
@@ -54,7 +53,7 @@ def run_replica_simulation(Nt, Nx, Ny, Nz, beta, u0, n, s, Ncfg, Nhits, run_numb
     dir_name = new_base_dir + f"_alpha{alpha}_ensemble{ensemble}"
     U = glqcd.ReplicaLattice(Nt, Nx, Ny, Nz, beta, u0, n, s)
     matrices = glqcd.create_su3_set()
-    U.markov_chain_sweep_replica(Ncfg, matrices, Nhits, dir_name)
+    U.markov_chain_sweep_replica(Ncfg, matrices, Nhits, dir_name, alpha)
 
 
 def main_control_run(new_base_dir):
@@ -81,7 +80,6 @@ def main_control_run(new_base_dir):
 
 def process_alpha_ensemble(new_base_dir, cfg_start, cfg_end, alpha, ensemble):
     import lattice_collection as lc # reimport for mutliprocessing safety
-    import action_v_cfg
     import gauge_latticeqcd as glqcd
 
     dir_name = f"{new_base_dir}_alpha{alpha}_ensemble{ensemble}"
@@ -155,7 +153,6 @@ def plot_actions(new_base_dir):
 
 
 def compute_action_diff(cfg_start, cfg_end, dir, alpha, ensemble):
-    import action_v_cfg
     import lattice_collection as lc
     import gauge_latticeqcd as glqcd
 
@@ -168,7 +165,6 @@ def compute_action_diff(cfg_start, cfg_end, dir, alpha, ensemble):
     xcutoff_2 = Nx - (s+ 1)
     for cfg in range(cfg_end - cfg_start):
         U1 = np.array(collection_1[cfg], dtype=np.complex128)
-
         U2 = np.array(collection_2[cfg], dtype=np.complex128)
 
         lattice = glqcd.ReplicaLattice(Nt, Nx, Ny, Nz, beta, u0, n, s, U1=U1, U2=U2)
@@ -183,8 +179,9 @@ def compute_action_diff(cfg_start, cfg_end, dir, alpha, ensemble):
 
 def analyse_action_differences(new_base_dir):
 
-    jobs = [(55, Nend, new_base_dir, alpha, e)
+    jobs = [(80, Nend, new_base_dir, alpha, e)
             for alpha in alphas for e in ensembles]
+    print(jobs)
 
     alpha_to_diffs = defaultdict(list)
 
@@ -193,11 +190,14 @@ def analyse_action_differences(new_base_dir):
 
     for alpha, S_diff in results:
         alpha_to_diffs[alpha].append(S_diff)
+    print(alpha_to_diffs)
+
 
     S_alpha_diffs = []
     S_alpha_std = []
     for alpha in alphas:
         diffs = alpha_to_diffs[alpha]
+        print(alpha, diffs)
         all_diffs = np.concatenate(diffs)
         mean_diff = np.mean(all_diffs)
         std = np.std(all_diffs) / np.sqrt(len(all_diffs))

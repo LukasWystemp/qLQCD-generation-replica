@@ -710,7 +710,7 @@ class ReplicaLattice:
     
     def is_a(self, txyz, xcutoff):
         # A bool
-        if txyz[1] > xcutoff:
+        if txyz[1] >= xcutoff: 
             return True
         return False
 
@@ -842,7 +842,7 @@ class ReplicaLattice:
         return dS_int
     
 
-    def markov_chain_sweep_replica(self, Ncfg, matrices, Nhits, dir_name, alpha = 0.2):
+    def markov_chain_sweep_replica(self, Ncfg, matrices, Nhits, dir_name, alpha):
         ratio_accept = 0.
         matrices_length = len(matrices)
 
@@ -855,7 +855,7 @@ class ReplicaLattice:
     
         txyz = np.zeros(4, dtype=int)
         for config in tqdm(range(Ncfg - 1), desc="Sweeps", position=0):
-            print(f"starting sweep {config}: {datetime.datetime.now()}")
+            #print(f"starting sweep {config}: {datetime.datetime.now()}")
             
             for t in tqdm(range(self.Nt), desc=f"Config {config}", leave=False, position=1):
                 for x in range(self.Nx):
@@ -887,6 +887,8 @@ class ReplicaLattice:
                                         self.U1[t, x, y, z, mu, :, :] = U1_prime
                                         self.U2[t, x, y, z, mu, :, :] = U2_prime
                                         ratio_accept += 1
+            
+
                                     
             # Save the configuration
             if not os.path.exists(dir_name):
@@ -895,4 +897,7 @@ class ReplicaLattice:
             filename_U2 = os.path.join(dir_name, f"config_{config:01d}_U2.npy")
             np.save(filename_U1, self.U1)
             np.save(filename_U2, self.U2)
+        
+        ratio_accept = float(ratio_accept) / Ncfg / self.Nx / self.Ny / self.Nz / self.Nt / 4. / Nhits
+        print(f"Acceptance ratio for alpha {alpha}: {ratio_accept}")
 
