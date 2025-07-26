@@ -812,7 +812,7 @@ class ReplicaLattice:
 
     def eval_point_S_replica(self, txyz, lattice_idx, xcutoff):
         tmp = 0.
-        for mu in range(1, 4):  #sum over \mu > \nu spacetime dimensions
+        for mu in range(1, 4):  #sum over \mu > \nu spacetime dimensions # CHANGED TO INCLUDE TIMELIKE
             for nu in range(mu):
                 tmp += ( 1. - np.real(np.trace( self.plaquette_replica(txyz, mu, nu, lattice_idx, xcutoff) )) / 3. / self.u0**4 )
         return self.beta * tmp
@@ -869,7 +869,6 @@ class ReplicaLattice:
                                 for _ in range(Nhits):
                                     r1 = np.random.randint(0, matrices_length)
                                     matrix1 = matrices[r1]
-
                                     r2 = np.random.randint(0, matrices_length)
                                     matrix2 = matrices[r2]
 
