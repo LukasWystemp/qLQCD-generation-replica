@@ -709,72 +709,71 @@ class ReplicaLattice:
 
     
     def is_a(self, txyz, xcutoff):
-        # A bool
         if txyz[1] >= xcutoff: 
             return True
         return False
 
-    def is_boundary(self, txyz):
-        # boundary bool
-        tcutoff = int(self.Nt / self.n)  # lowest cutoff
-        for i in range(self.n):
-            if txyz[0] == tcutoff * (i + 1):
-                return True
-        return False
+    def get_part_bounds(self):
+        """Returns a list of (start, end) tuples defining each partition."""
+        if self.Nt % self.n != 0:
+            raise ValueError(f"Nt = {self.Nt} must be divisible by n = {self.n}")
+        
+        part_size = self.Nt // self.n
+        bounds = [(i * part_size, (i + 1) * part_size - 1) for i in range(self.n)]
+        return bounds
 
-    def b_idx(self, txyz, xcutoff):
-        # B index, if boundary returns lowest
-        if self.is_a(txyz, xcutoff) == False:
-            tcutoff = int(self.Nt / self.n) # lowest cutoff
-            for i in range(self.n):
-                if txyz[0] == tcutoff * (i + 1): ## HERE IS AN ISSUE I THINK
-                    return i
-            raise Exception(f"Error: txyz[0] {txyz[0]} is out of bounds for b_idx calculation.")
+    def find_part(self, t, bounds):
+        """Given a coordinate t, find which part it belongs to."""
+        for i, (start, end) in enumerate(bounds):
+            if start <= t <= end:
+                return i, start, end
+        raise ValueError(f"Invalid coordinate t = {t}")
 
-    def replica_periodic_link(self, txyz, direction, xcutoff):
-        # t = upper_boundary_t -> t = lower_boundary_t if txyz[0] is in B
+    def move(self, txyz, direction, forward: bool, xcutoff):
+        """Moves coordinate txyz -> txyz with correct BCs, forward or backward"""
         t, x, y, z = txyz
 
-        t_cutoff = int(self.Nt / self.n)  # lowest cutoff
-        if self.is_a(txyz, xcutoff):  # A
-            t_wrapped = t % self.Nt
-        else: # B
-            i = self.b_idx(txyz, xcutoff)
-            lower_boundary_t = t_cutoff * i
-            upper_boundary_t = t_cutoff * (i + 1)
-            t_wrapped = lower_boundary_t + (t % (upper_boundary_t - lower_boundary_t))
+        if not (0 <= t < self.Nt and 0 <= x < self.Nx and 0 <= y < self.Ny and 0 <= z < self.Nz):
+            raise ValueError(f"Invalid coordinates txyz = {txyz}")
 
-        x_wrapped = x % self.Nx
-        y_wrapped = y % self.Ny
-        z_wrapped = z % self.Nz
+        # Initialize all coordinates to their original values
+        t_wrapped = t
+        x_wrapped = x
+        y_wrapped = y
+        z_wrapped = z
 
-        
-        return self.U1[t_wrapped, x_wrapped, y_wrapped, z_wrapped, direction, :, :]
-       #elif lattice_idx == 2:
-       #     return self.U2[t_wrapped, x_wrapped, y_wrapped, z_wrapped, direction, :, :]
-       # else:
-       #     raise ValueError("Invalid lattice index. Use 1 or 2 for U1 or U2.")
+        if direction == 0:
+            if self.is_a(txyz, xcutoff):
+                t_wrapped = (t + 1) % self.Nt if forward else (t - 1 + self.Nt) % self.Nt
+            else:
+                bounds = self.get_part_bounds()
+                part_idx, start, end = self.find_part(t, bounds)
+                if forward:  
+                    t_wrapped = start if t == end else t + 1
+                else:
+                    t_wrapped = end if t == start else t - 1
+        elif direction == 1:
+            x_wrapped = (x + 1) % self.Nx if forward else (x - 1 + self.Nx) % self.Nx
+        elif direction == 2:
+            y_wrapped = (y + 1) % self.Ny if forward else (y - 1 + self.Ny) % self.Ny
+        elif direction == 3:
+            z_wrapped = (z + 1) % self.Nz if forward else (z - 1 + self.Nz) % self.Nz
+        else:
+            raise ValueError(f"Invalid direction {direction}, must be 0-3.")
 
-
-    def replica_move_forward_link(self, txyz, direction, xcutoff):
-        link = self.replica_periodic_link(txyz, direction, xcutoff)
-        new_txyz = txyz[:]
-        new_txyz[direction] += 1
-        return link, new_txyz
-
-    def replica_move_backward_link(self, txyz, direction, xcutoff):
-        new_txyz = txyz[:]
-        new_txyz[direction] -= 1
-        link = self.replica_periodic_link(new_txyz, direction, xcutoff).conj().T
-        return link, new_txyz
+        return [t_wrapped, x_wrapped, y_wrapped, z_wrapped]
 
     def replica_line_move_forward(self, line, txyz, direction, xcutoff):
-        link, new_txyz = self.replica_move_forward_link(txyz, direction, xcutoff)
+        #print("line move forward", txyz, direction)
+        link = self.U1[txyz[0], txyz[1], txyz[2], txyz[3], direction, :, :]
+        new_txyz = self.move(txyz, direction, True, xcutoff)
         new_line = np.dot(line, link)
         return new_line, new_txyz
 
     def replica_line_move_backward(self, line, txyz, direction, xcutoff):
-        link, new_txyz = self.replica_move_backward_link(txyz, direction, xcutoff)
+        #print("line move backward", txyz, direction)
+        new_txyz = self.move(txyz, direction, False, xcutoff)
+        link = self.U1[new_txyz[0], new_txyz[1], new_txyz[2], new_txyz[3], direction, :, :].conj().T
         new_line = np.dot(line, link)
         return new_line, new_txyz
 
@@ -785,15 +784,16 @@ class ReplicaLattice:
             if nu != mu:
 
                 start_txyz = [t, x, y, z]
-                start_txyz[mu] += 1
+                start_txyz = self.move(start_txyz, mu, True, xcutoff) # move mu forward
+                #start_txyz[mu] += 1
 
-                line1 = 1.
+                line1 = np.eye(3, dtype='complex128')
                 line1, next_txyz = self.replica_line_move_forward(line1, start_txyz, nu, xcutoff)
                 line1, next_txyz = self.replica_line_move_backward(line1, next_txyz, mu, xcutoff)
                 line1, next_txyz = self.replica_line_move_backward(line1, next_txyz, nu, xcutoff)
                 tmp += line1
                 
-                line2 = 1.
+                line2 = np.eye(3, dtype='complex128')
                 line2, next_txyz = self.replica_line_move_backward(line2, start_txyz, nu, xcutoff)
                 line2, next_txyz = self.replica_line_move_backward(line2, next_txyz, mu, xcutoff)
                 line2, next_txyz = self.replica_line_move_forward(line2, next_txyz, nu, xcutoff)
@@ -803,8 +803,8 @@ class ReplicaLattice:
 
 
     def plaquette_replica(self, txyz, mu, nu, xcutoff):
-        result = 1.
-        result, next_txyz = self.replica_line_move_forward(1., txyz, mu, xcutoff)
+        result = np.eye(3, dtype='complex128')
+        result, next_txyz = self.replica_line_move_forward(result, txyz, mu, xcutoff)
         result, next_txyz = self.replica_line_move_forward(result, next_txyz, nu, xcutoff)
         result, next_txyz = self.replica_line_move_backward(result, next_txyz, mu, xcutoff)
         result, next_txyz = self.replica_line_move_backward(result, next_txyz, nu, xcutoff)
@@ -821,13 +821,10 @@ class ReplicaLattice:
         S = 0.
         for t in range(self.Nt):
             for x in range(self.Nx):
-                if (x >= (self.Nt - self.s - 1) and x <= (self.Nt - self.s + 1)):
-                    for y in range(self.Ny):
-                        for z in range(self.Nz):
-                            txyz = [t, x, y, z]
-                            S += self.eval_point_S_replica(txyz, xcutoff)
-                else:
-                    continue
+                for y in range(self.Ny):
+                    for z in range(self.Nz):
+                        txyz = [t, x, y, z]
+                        S += self.eval_point_S_replica(txyz, xcutoff)
         return S
 
     def calc_S_int(self, alpha, xcutoff_1, xcutoff_2):

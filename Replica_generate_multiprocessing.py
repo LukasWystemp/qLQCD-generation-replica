@@ -21,17 +21,17 @@ from scipy import integrate
 
 # User parameters
 action = 'W'
-Nt, Nx, Ny, Nz = 6, 6, 6, 6
+Nt, Nx, Ny, Nz = 8, 8, 8, 8
 beta = 5.7
 Nstart = 0
-Nend = 180
+Nend = 120
 Ncfg = Nend - Nstart + 1
-Nhits = 100
+Nhits = 10
 n = 2
 s = 2
 u0 = 1.0
 
-run_number = 9
+run_number = 11
 
 alphas = [0, 0.2, 0.4, 0.6, 0.8, 1]
 ensembles = [0, 1]
@@ -177,12 +177,12 @@ def compute_action_diff(cfg_start, cfg_end, dir, alpha, ensemble):
         actions_1.append(SL)
         actions_2.append(SLp1)
 
-    S_diffs = (np.array(actions_2) - np.array(actions_1)) / (Nt * Nx * Ny * Nz) # action density
+    S_diffs = (np.array(actions_2) - np.array(actions_1)) / ((Nt / n) * Nx * Ny * Nz) # action density
     return alpha, S_diffs
  
 def analyse_action_differences(new_base_dir):
 
-    jobs = [(160, Nend, new_base_dir, alpha, e)
+    jobs = [(100, Nend, new_base_dir, alpha, e)
             for alpha in alphas for e in ensembles]
     #print(jobs)
 
@@ -215,7 +215,7 @@ def analyse_action_differences(new_base_dir):
     plt.title('Average Action Difference vs Alpha')
     plt.grid()
     c, l = c_func(S_alpha_diffs)
-    plt.text(0.05, 0.1, f"Run number: {run_number}\n$N_t x N_s^3 = {Nt}x{Nx}^3$\nEnsembles: {ensembles[0]}-{ensembles[-1]}\nC({l:.2f}) fm = {c:.2f}", transform=plt.gca().transAxes, fontsize=10, bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5))
+    plt.text(0.05, 0.1, f"Run number: {run_number}\n$N_t x N_s^3 = {Nt}x{Nx}^3$\nEnsembles: {ensembles[0]}-{ensembles[-1]}\nC({l:.2f}) fm = {c:.5f}", transform=plt.gca().transAxes, fontsize=10, bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5))
     plt.savefig(f"action_diff_vs_alpha_W_{run_number}_{Nt}x{Nx}x{Ny}x{Nz}_alpha{alphas[0]}-{alphas[-1]}_e{ensembles[0]}-{ensembles[-1]}.png", dpi=300)
     plt.show()
 
@@ -257,7 +257,7 @@ def main():
     S_alpha_diffs = analyse_action_differences(new_base_dir)
 
     c, l = c_func(S_alpha_diffs)
-    print(f"C({l:.2f} fm) = {c:.2f}")
+    print(f"C({l:.2f} fm) = {c:.8f}")
 
 if __name__ == "__main__":
     main()
