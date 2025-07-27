@@ -688,16 +688,16 @@ Recommended reading:
 
 """
 class ReplicaLattice:
-    def __init__(self, Nt, Nx, Ny, Nz, beta, u0, n, s, U1=None, U2=None):
+    def __init__(self, Nt, Nx, Ny, Nz, beta, u0, n, s, U1=None):
         identity_matrix = np.identity(3, dtype='complex128')
 
         if U1 is None:
             U1 = np.tile(identity_matrix, (Nt, Nx, Ny, Nz, 4, 1, 1))
-        if U2 is None:
-            U2 = np.tile(identity_matrix, (Nt, Nx, Ny, Nz, 4, 1, 1))
+        #if U2 is None:
+        #    U2 = np.tile(identity_matrix, (Nt, Nx, Ny, Nz, 4, 1, 1))
         
         self.U1 = U1
-        self.U2 = U2
+        #self.U2 = U2
         self.beta = beta
         self.Nt = Nt
         self.Nx = Nx
@@ -727,11 +727,11 @@ class ReplicaLattice:
         if self.is_a(txyz, xcutoff) == False:
             tcutoff = int(self.Nt / self.n) # lowest cutoff
             for i in range(self.n):
-                if txyz[0] <= tcutoff * (i + 1):
+                if txyz[0] == tcutoff * (i + 1): ## HERE IS AN ISSUE I THINK
                     return i
-            raise Exception("Error: txyz[0] is out of bounds for b_idx calculation.")
+            raise Exception(f"Error: txyz[0] {txyz[0]} is out of bounds for b_idx calculation.")
 
-    def replica_periodic_link(self, txyz, direction, lattice_idx, xcutoff):
+    def replica_periodic_link(self, txyz, direction, xcutoff):
         # t = upper_boundary_t -> t = lower_boundary_t if txyz[0] is in B
         t, x, y, z = txyz
 
@@ -748,37 +748,37 @@ class ReplicaLattice:
         y_wrapped = y % self.Ny
         z_wrapped = z % self.Nz
 
-        if lattice_idx == 1:
-            return self.U1[t_wrapped, x_wrapped, y_wrapped, z_wrapped, direction, :, :]
-        elif lattice_idx == 2:
-            return self.U2[t_wrapped, x_wrapped, y_wrapped, z_wrapped, direction, :, :]
-        else:
-            raise ValueError("Invalid lattice index. Use 1 or 2 for U1 or U2.")
+        
+        return self.U1[t_wrapped, x_wrapped, y_wrapped, z_wrapped, direction, :, :]
+       #elif lattice_idx == 2:
+       #     return self.U2[t_wrapped, x_wrapped, y_wrapped, z_wrapped, direction, :, :]
+       # else:
+       #     raise ValueError("Invalid lattice index. Use 1 or 2 for U1 or U2.")
 
 
-    def replica_move_forward_link(self, txyz, direction, lattice_idx, xcutoff):
-        link = self.replica_periodic_link(txyz, direction, lattice_idx, xcutoff)
+    def replica_move_forward_link(self, txyz, direction, xcutoff):
+        link = self.replica_periodic_link(txyz, direction, xcutoff)
         new_txyz = txyz[:]
         new_txyz[direction] += 1
         return link, new_txyz
 
-    def replica_move_backward_link(self, txyz, direction, lattice_idx, xcutoff):
+    def replica_move_backward_link(self, txyz, direction, xcutoff):
         new_txyz = txyz[:]
         new_txyz[direction] -= 1
-        link = self.replica_periodic_link(new_txyz, direction, lattice_idx, xcutoff).conj().T
+        link = self.replica_periodic_link(new_txyz, direction, xcutoff).conj().T
         return link, new_txyz
 
-    def replica_line_move_forward(self, line, txyz, direction, lattice_idx, xcutoff):
-        link, new_txyz = self.replica_move_forward_link(txyz, direction, lattice_idx, xcutoff)
+    def replica_line_move_forward(self, line, txyz, direction, xcutoff):
+        link, new_txyz = self.replica_move_forward_link(txyz, direction, xcutoff)
         new_line = np.dot(line, link)
         return new_line, new_txyz
 
-    def replica_line_move_backward(self, line, txyz, direction, lattice_idx, xcutoff):
-        link, new_txyz = self.replica_move_backward_link(txyz, direction, lattice_idx, xcutoff)
+    def replica_line_move_backward(self, line, txyz, direction, xcutoff):
+        link, new_txyz = self.replica_move_backward_link(txyz, direction, xcutoff)
         new_line = np.dot(line, link)
         return new_line, new_txyz
 
-    def dS_staple(self, txyz, mu, lattice_idx, xcutoff):
+    def dS_staple_replica(self, txyz, mu, xcutoff):
         t, x, y, z = txyz
         tmp = np.zeros((3, 3), dtype='complex128')
         for nu in range(4):
@@ -788,48 +788,51 @@ class ReplicaLattice:
                 start_txyz[mu] += 1
 
                 line1 = 1.
-                line1, next_txyz = self.replica_line_move_forward(line1, start_txyz, nu, lattice_idx, xcutoff)
-                line1, next_txyz = self.replica_line_move_backward(line1, next_txyz, mu, lattice_idx, xcutoff)
-                line1, next_txyz = self.replica_line_move_backward(line1, next_txyz, nu, lattice_idx, xcutoff)
+                line1, next_txyz = self.replica_line_move_forward(line1, start_txyz, nu, xcutoff)
+                line1, next_txyz = self.replica_line_move_backward(line1, next_txyz, mu, xcutoff)
+                line1, next_txyz = self.replica_line_move_backward(line1, next_txyz, nu, xcutoff)
                 tmp += line1
                 
                 line2 = 1.
-                line2, next_txyz = self.replica_line_move_backward(line2, start_txyz, nu, lattice_idx, xcutoff)
-                line2, next_txyz = self.replica_line_move_backward(line2, next_txyz, mu, lattice_idx, xcutoff)
-                line2, next_txyz = self.replica_line_move_forward(line2, next_txyz, nu, lattice_idx, xcutoff)
+                line2, next_txyz = self.replica_line_move_backward(line2, start_txyz, nu, xcutoff)
+                line2, next_txyz = self.replica_line_move_backward(line2, next_txyz, mu, xcutoff)
+                line2, next_txyz = self.replica_line_move_forward(line2, next_txyz, nu, xcutoff)
                 tmp += line2
         
         return tmp / self.u0**3
 
 
-    def plaquette_replica(self, txyz, mu, nu, lattice_idx, xcutoff):
+    def plaquette_replica(self, txyz, mu, nu, xcutoff):
         result = 1.
-        result, next_txyz = self.replica_line_move_forward(1., txyz, mu, lattice_idx, xcutoff)
-        result, next_txyz = self.replica_line_move_forward(result, next_txyz, nu, lattice_idx, xcutoff)
-        result, next_txyz = self.replica_line_move_backward(result, next_txyz, mu, lattice_idx, xcutoff)
-        result, next_txyz = self.replica_line_move_backward(result, next_txyz, nu, lattice_idx, xcutoff)
+        result, next_txyz = self.replica_line_move_forward(1., txyz, mu, xcutoff)
+        result, next_txyz = self.replica_line_move_forward(result, next_txyz, nu, xcutoff)
+        result, next_txyz = self.replica_line_move_backward(result, next_txyz, mu, xcutoff)
+        result, next_txyz = self.replica_line_move_backward(result, next_txyz, nu, xcutoff)
         return result
 
-    def eval_point_S_replica(self, txyz, lattice_idx, xcutoff):
+    def eval_point_S_replica(self, txyz, xcutoff):
         tmp = 0.
         for mu in range(1, 4):  #sum over \mu > \nu spacetime dimensions # CHANGED TO INCLUDE TIMELIKE
             for nu in range(mu):
-                tmp += ( 1. - np.real(np.trace( self.plaquette_replica(txyz, mu, nu, lattice_idx, xcutoff) )) / 3. / self.u0**4 )
+                tmp += ( 1. - np.real(np.trace( self.plaquette_replica(txyz, mu, nu, xcutoff) )) / 3. / self.u0**4 )
         return self.beta * tmp
 
-    def calc_action_replica(self, lattice_idx, xcutoff):
+    def calc_action_replica(self, xcutoff):
         S = 0.
         for t in range(self.Nt):
             for x in range(self.Nx):
-                for y in range(self.Ny):
-                    for z in range(self.Nz):
-                        txyz = [t, x, y, z]
-                        S += self.eval_point_S_replica(txyz, lattice_idx, xcutoff)
+                if (x >= (self.Nt - self.s - 1) and x <= (self.Nt - self.s + 1)):
+                    for y in range(self.Ny):
+                        for z in range(self.Nz):
+                            txyz = [t, x, y, z]
+                            S += self.eval_point_S_replica(txyz, xcutoff)
+                else:
+                    continue
         return S
 
     def calc_S_int(self, alpha, xcutoff_1, xcutoff_2):
-        S_1 = self.calc_action_replica(1, xcutoff_1)
-        S_2 = self.calc_action_replica(2, xcutoff_2)
+        S_1 = self.calc_action_replica(xcutoff_1)
+        S_2 = self.calc_action_replica(xcutoff_2)
         S_int = (1 - alpha) * S_1 + alpha * S_2
         return S_int
 
@@ -854,37 +857,32 @@ class ReplicaLattice:
         xcutoff_2 = self.Nx - s_delta_s
     
         txyz = np.zeros(4, dtype=int)
-        for config in tqdm(range(Ncfg - 1), desc="Sweeps", position=0):
+        for config in range(Ncfg - 1):
             #print(f"starting sweep {config}: {datetime.datetime.now()}")
             
-            for t in tqdm(range(self.Nt), desc=f"Config {config}", leave=False, position=1):
+            for t in range(self.Nt):
                 for x in range(self.Nx):
                     for y in range(self.Ny):
                         for z in range(self.Nz):
                             for mu in range(4):
                                 txyz = [t, x, y, z]
-                                A1 = self.dS_staple(txyz, mu, 1, xcutoff_1)
-                                A2 = self.dS_staple(txyz, mu, 2, xcutoff_2)
+                                A1 = self.dS_staple_replica(txyz, mu, xcutoff_1)
+                                A2 = self.dS_staple_replica(txyz, mu, xcutoff_2)
 
                                 for _ in range(Nhits):
-                                    r1 = np.random.randint(0, matrices_length)
-                                    matrix1 = matrices[r1]
-                                    r2 = np.random.randint(0, matrices_length)
-                                    matrix2 = matrices[r2]
+                                    r = np.random.randint(0, matrices_length)
+                                    matrix = matrices[r]
+    
+                                    U = self.U1[t, x, y, z, mu, :, :]
+                                    U_prime = np.dot(matrix, U)
 
-                                    U1 = self.U1[t, x, y, z, mu, :, :]
-                                    U1_prime = np.dot(matrix1, U1)
-                                    dS_1 = self.deltaS(U1, U1_prime, A1)
-          
-                                    U2 = self.U2[t, x, y, z, mu, :, :]
-                                    U2_prime = np.dot(matrix2, U2)
-                                    dS_2 = self.deltaS(U2, U2_prime, A2)
+                                    dS_1 = self.deltaS(U, U_prime, A1)
+                                    dS_2 = self.deltaS(U, U_prime, A2)
 
                                     dS_int = self.delta_S_int(alpha, dS_1, dS_2)
 
                                     if (np.exp(-1. * dS_int) > np.random.uniform(0, 1)):
-                                        self.U1[t, x, y, z, mu, :, :] = U1_prime
-                                        self.U2[t, x, y, z, mu, :, :] = U2_prime
+                                        self.U1[t, x, y, z, mu, :, :] = U_prime
                                         ratio_accept += 1
             
 
@@ -893,9 +891,9 @@ class ReplicaLattice:
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
             filename_U1 = os.path.join(dir_name, f"config_{config:01d}_U1.npy")
-            filename_U2 = os.path.join(dir_name, f"config_{config:01d}_U2.npy")
+            #filename_U2 = os.path.join(dir_name, f"config_{config:01d}_U2.npy")
             np.save(filename_U1, self.U1)
-            np.save(filename_U2, self.U2)
+            #np.save(filename_U2, self.U2)
         
         ratio_accept = float(ratio_accept) / Ncfg / self.Nx / self.Ny / self.Nz / self.Nt / 4. / Nhits
         print(f"Acceptance ratio for alpha {alpha}: {ratio_accept}")
